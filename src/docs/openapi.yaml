@@ -1,0 +1,489 @@
+openapi: 3.0.3
+info:
+  title: Lead Management Portal Backend API
+  version: 1.0.0
+  description: >
+    Production-ready REST API for managing sales leads and their associated notes.
+    Built with Node.js, Express, TypeScript, SQLite, and Prisma ORM.
+servers:
+  - url: http://localhost:3000
+    description: Local Development Server
+
+paths:
+  /api/leads:
+    get:
+      summary: List and search leads
+      description: Retrieve a paginated list of leads with optional search and status filtering.
+      tags:
+        - Leads
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Search term to match against lead name or email
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          description: Filter leads by status
+          schema:
+            type: string
+            enum: [new, contacted, qualified, lost]
+        - name: page
+          in: query
+          required: false
+          description: Page number (1-indexed)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          description: Number of items per page (maximum 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: Paginated list of leads retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedLeadsResponse'
+        '400':
+          description: Validation error in query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Create a new lead
+      description: Add a new lead to the database. Email must be unique.
+      tags:
+        - Leads
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLeadInput'
+      responses:
+        '201':
+          description: Lead created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Lead with this email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/leads/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Numeric primary key ID of the lead
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      summary: Get lead by ID
+      description: Retrieve a single lead with their associated notes.
+      tags:
+        - Leads
+      responses:
+        '200':
+          description: Lead retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadWithNotesResponse'
+        '400':
+          description: Invalid ID parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Lead not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    patch:
+      summary: Update a lead
+      description: Partially update permitted fields of an existing lead.
+      tags:
+        - Leads
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLeadInput'
+      responses:
+        '200':
+          description: Lead updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Lead not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Email conflict with another lead
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete a lead
+      description: Delete a lead and all associated notes via cascade delete.
+      tags:
+        - Leads
+      responses:
+        '204':
+          description: Lead deleted successfully (No Content)
+        '400':
+          description: Invalid ID parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Lead not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/leads/{id}/notes:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Numeric primary key ID of the parent lead
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      summary: List notes for a lead
+      description: Retrieve all notes associated with a specific lead ordered newest first.
+      tags:
+        - Notes
+      responses:
+        '200':
+          description: Notes retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotesListResponse'
+        '400':
+          description: Invalid lead ID parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Lead not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Add a note to a lead
+      description: Create a new note attached to the specified lead.
+      tags:
+        - Notes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNoteInput'
+      responses:
+        '201':
+          description: Note created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Lead not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    Lead:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Jane Doe
+        email:
+          type: string
+          format: email
+          example: jane.doe@example.com
+        phone:
+          type: string
+          nullable: true
+          example: '+1-555-0199'
+        status:
+          type: string
+          enum: [new, contacted, qualified, lost]
+          example: new
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-10-25T14:00:00.000Z'
+
+    LeadWithNotes:
+      allOf:
+        - $ref: '#/components/schemas/Lead'
+        - type: object
+          properties:
+            notes:
+              type: array
+              items:
+                $ref: '#/components/schemas/Note'
+
+    Note:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        leadId:
+          type: integer
+          example: 1
+        content:
+          type: string
+          example: 'Introductory call completed. Interested in Enterprise plan.'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-10-25T14:10:00.000Z'
+
+    CreateLeadInput:
+      type: object
+      required:
+        - name
+        - email
+      properties:
+        name:
+          type: string
+          example: John Smith
+        email:
+          type: string
+          format: email
+          example: john.smith@company.com
+        phone:
+          type: string
+          nullable: true
+          example: '+1-555-1234'
+        status:
+          type: string
+          enum: [new, contacted, qualified, lost]
+          default: new
+          example: new
+
+    UpdateLeadInput:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          example: John Smith Updated
+        email:
+          type: string
+          format: email
+          example: john.updated@company.com
+        phone:
+          type: string
+          nullable: true
+          example: '+1-555-9876'
+        status:
+          type: string
+          enum: [new, contacted, qualified, lost]
+          example: contacted
+
+    CreateNoteInput:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          example: 'Followed up via email regarding pricing proposal.'
+
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 45
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 10
+        totalPages:
+          type: integer
+          example: 5
+
+    PaginatedLeadsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Lead'
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    LeadResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Lead'
+
+    LeadWithNotesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/LeadWithNotes'
+
+    NotesListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Note'
+
+    NoteResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Note'
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              example: Request validation failed
+            details:
+              type: array
+              items:
+                type: object
+              example:
+                - field: email
+                  message: Invalid email format
