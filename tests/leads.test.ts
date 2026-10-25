@@ -84,6 +84,82 @@ describe('Leads API Endpoints', () => {
       expect(response.body.success).toBe(false);
       expect(response.body.error.code).toBe('CONFLICT');
     });
+
+    it('should reject invalid phone number (too short / incomplete like "+1-55")', async () => {
+      const response = await request(app).post('/api/leads').send({
+        name: 'John Smith',
+        email: 'john.smith2@company.com',
+        phone: '+1-55',
+        status: 'new',
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+      const phoneError = response.body.error.details.find(
+        (d: { field: string; message: string }) => d.field === 'phone',
+      );
+      expect(phoneError).toBeDefined();
+      expect(phoneError.message).toContain('Invalid phone number format');
+    });
+
+    it('should reject invalid phone number with alphabetic characters', async () => {
+      const response = await request(app).post('/api/leads').send({
+        name: 'Alpha Phone',
+        email: 'alpha.phone@company.com',
+        phone: '+1-555-CALL-NOW',
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('should reject invalid phone number with unmatched parentheses', async () => {
+      const response = await request(app).post('/api/leads').send({
+        name: 'Paren Phone',
+        email: 'paren.phone@company.com',
+        phone: '(555-123-4567',
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('should accept valid international and formatted phone numbers', async () => {
+      const validNumbers = [
+        '+1-555-0101',
+        '(555) 123-4567',
+        '+44-20-7946-0912',
+        '+91 98765 43210',
+        '555-123-4567',
+      ];
+
+      for (let i = 0; i < validNumbers.length; i++) {
+        const response = await request(app)
+          .post('/api/leads')
+          .send({
+            name: `Valid Lead ${i}`,
+            email: `valid.lead${i}@company.com`,
+            phone: validNumbers[i],
+          });
+
+        expect(response.status).toBe(201);
+        expect(response.body.data.phone).toBe(validNumbers[i]);
+      }
+    });
+
+    it('should normalize empty string phone to null', async () => {
+      const response = await request(app).post('/api/leads').send({
+        name: 'Empty Phone Lead',
+        email: 'empty.phone@company.com',
+        phone: '',
+      });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.phone).toBeNull();
+    });
   });
 
   describe('GET /api/leads', () => {
@@ -247,6 +323,42 @@ describe('Leads API Endpoints', () => {
 
       expect(response.status).toBe(409);
       expect(response.body.error.code).toBe('CONFLICT');
+    });
+
+    it('should reject invalid phone number on PATCH (e.g. "+1-55")', async () => {
+      const lead = await prisma.lead.create({
+        data: { name: 'Patch Phone Lead', email: 'patch.phone@example.com', phone: '+1-555-0101' },
+      });
+
+      const response = await request(app).patch(`/api/leads/${lead.id}`).send({ phone: '+1-55' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('should update phone with a valid formatted number', async () => {
+      const lead = await prisma.lead.create({
+        data: { name: 'Valid Patch Lead', email: 'valid.patch@example.com' },
+      });
+
+      const response = await request(app)
+        .patch(`/api/leads/${lead.id}`)
+        .send({ phone: '+44-20-7946-0912' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.phone).toBe('+44-20-7946-0912');
+    });
+
+    it('should clear phone when set to null or empty string', async () => {
+      const lead = await prisma.lead.create({
+        data: { name: 'Clear Phone Lead', email: 'clear.phone@example.com', phone: '+1-555-0101' },
+      });
+
+      const response = await request(app).patch(`/api/leads/${lead.id}`).send({ phone: null });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.phone).toBeNull();
     });
   });
 

@@ -309,6 +309,7 @@ components:
         phone:
           type: string
           nullable: true
+          description: Standard international or national phone number with 7 to 15 digits (e.g., +1-555-0199, (555) 123-4567, or +44-20-7946-0912)
           example: '+1-555-0199'
         status:
           type: string
@@ -362,6 +363,7 @@ components:
         phone:
           type: string
           nullable: true
+          description: Standard international or national phone number with 7 to 15 digits (e.g., +1-555-1234)
           example: '+1-555-1234'
         status:
           type: string
@@ -383,6 +385,7 @@ components:
         phone:
           type: string
           nullable: true
+          description: Standard international or national phone number with 7 to 15 digits (e.g., +1-555-9876)
           example: '+1-555-9876'
         status:
           type: string

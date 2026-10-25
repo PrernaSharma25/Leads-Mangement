@@ -10,7 +10,8 @@ A production-quality, modular RESTful backend API for managing sales leads and n
 - [Prerequisites](#prerequisites)
 - [Tech Stack & Key Decisions](#tech-stack--key-decisions)
 - [Project Directory Structure](#project-directory-structure)
-- [Quick Start Guide](#quick-start-guide)
+- [Quick Start Guide (Post-Clone Setup)](#quick-start-guide-post-clone-setup)
+- [Git-Ignored Files & Fresh Clone Checklist](#git-ignored-files--fresh-clone-checklist)
 - [Environment Configuration](#environment-configuration)
 - [Database Setup & Migrations](#database-setup--migrations)
 - [Database Seeding](#database-seeding)
@@ -145,7 +146,7 @@ lead-management-backend/
 ├── tests/
 │   ├── env.setup.ts                # Sets NODE_ENV=test and test DB URL before tests load
 │   ├── setup.ts                    # Clones schema structure & resets tables between tests
-│   ├── leads.test.ts               # Lead integration test suite (20 tests)
+│   ├── leads.test.ts               # Lead integration test suite (28 tests)
 │   └── notes.test.ts               # Note integration test suite (8 tests)
 ├── .env                            # Local environment variables (not committed)
 ├── .env.example                    # Example template for environment variables
@@ -161,31 +162,97 @@ lead-management-backend/
 
 ---
 
-## Quick Start Guide
+## Quick Start Guide (Post-Clone Setup)
 
-Clone the repository and run the following commands:
+When you clone this repository, several critical files (such as `.env`, `node_modules/`, and the SQLite database file `prisma/dev.db`) are **intentionally not present** because they are excluded by [`.gitignore`](file:///c:/Users/Dell/OneDrive/Desktop/Prerna%20Data/2026_skills/lead-management-backend/.gitignore).
+
+Follow these step-by-step instructions to initialize your local development environment:
+
+### Step 1: Clone the Repository & Enter the Directory
 
 ```bash
-# 1. Install dependencies
-npm install
+git clone <repository-url>
+cd lead-management-backend
+```
 
-# 2. Configure environment file
+### Step 2: Install Dependencies (`node_modules` is git-ignored)
+
+Install the required npm packages and build tools:
+
+```bash
+npm install
+```
+
+### Step 3: Create the Environment File (`.env` is git-ignored)
+
+Copy the committed `.env.example` template to create your local `.env` file:
+
+```bash
 # On Windows PowerShell:
 Copy-Item .env.example .env
-# On macOS/Linux:
+
+# On Windows Command Prompt (cmd.exe):
+copy .env.example .env
+
+# On macOS / Linux:
 cp .env.example .env
+```
 
-# 3. Create and apply the database migrations
+> **Why this is required**: The application validates environment variables (`PORT`, `NODE_ENV`, `DATABASE_URL`) on startup using Zod in [`src/config/env.ts`](file:///c:/Users/Dell/OneDrive/Desktop/Prerna%20Data/2026_skills/lead-management-backend/src/config/env.ts). Without `.env`, the server will refuse to start.
+
+### Step 4: Create the SQLite Database & Apply Migrations (`prisma/dev.db` is git-ignored)
+
+The SQLite database file does not exist in a fresh clone. Run Prisma Migrate to automatically create `prisma/dev.db`, execute all migration scripts, and generate the type-safe `@prisma/client`:
+
+```bash
 npm run db:migrate
+```
 
-# 4. Populate realistic demo records
+### Step 5: Seed the Database with Demo Leads & Notes
+
+Since the newly migrated database is empty, run the seed script to populate realistic sample data:
+
+```bash
 npm run db:seed
+```
 
-# 5. Start development server with hot-reload
+This populates 5 realistic leads covering all statuses (`new`, `contacted`, `qualified`, `lost`) along with follow-up notes.
+
+### Step 6: Start the Development Server
+
+Start the API server with hot-reloading:
+
+```bash
 npm run dev
 ```
 
-The server will be running at `http://localhost:3000`.
+The server will be available at:
+👉 **`http://localhost:3000`**
+👉 Swagger Documentation: **`http://localhost:3000/api-docs`**
+
+### Step 7: (Optional) Run the Automated Test Suite
+
+Verify that all endpoints and validation rules work properly on your system:
+
+```bash
+npm test
+```
+
+---
+
+## Git-Ignored Files & Fresh Clone Checklist
+
+Here is a breakdown of why specific files are excluded from git and what restores them:
+
+| File / Directory                  | Why It Is Git-Ignored                                                                      | What Happens If Omitted                                                              | How to Create / Restore                                                            |
+| :-------------------------------- | :----------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------- |
+| **`node_modules/`**               | Vendor dependencies are large and platform-dependent.                                      | Node.js throws `MODULE_NOT_FOUND` on startup.                                        | Run `npm install`                                                                  |
+| **`.env`**                        | Secrets and environment-specific configs must not be checked into source control.          | Server fails fast on startup with `VALIDATION_ERROR: Missing environment variables`. | Copy from `.env.example`: `cp .env.example .env` (or PowerShell `Copy-Item`)       |
+| **`prisma/dev.db`**               | Relational SQLite databases are local binary state files and should not be tracked by git. | API calls fail with `Database file does not exist` or `no such table: Lead`.         | Run `npm run db:migrate` to create `dev.db` and apply schema migrations            |
+| **`node_modules/@prisma/client`** | Generated TypeScript client tailored to your schema.                                       | TypeScript compiler and runtime cannot find Prisma client methods.                   | Automatically generated during `npm run db:migrate` (or run `npm run db:generate`) |
+| **Database Records (Seed Data)**  | Dynamic user data belongs in local database storage, not git.                              | All queries return empty lists (`{ data: [], pagination: { total: 0 } }`).           | Run `npm run db:seed`                                                              |
+| **`dist/`**                       | Production build artifacts.                                                                | Cannot run `npm run start` in production mode.                                       | Run `npm run build`                                                                |
+| **`prisma/test.db`**              | Isolated SQLite database used only during automated tests.                                 | None; created automatically during test execution.                                   | Handled automatically during `npm test`                                            |
 
 ---
 
@@ -451,7 +518,7 @@ All errors follow a unified structure:
 Testing is powered by **Jest**, **Supertest**, and **SWC**:
 
 ```bash
-# Run all 28 automated integration tests
+# Run all 36 automated integration tests (28 leads + 8 notes)
 npm test
 ```
 
